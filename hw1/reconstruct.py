@@ -1,12 +1,38 @@
 import numpy as np
 import open3d as o3d
 import argparse
+import cv2
 
+pcd =[]
+colors = []
 
 def depth_image_to_point_cloud(rgb, depth):
-    # TODO: Get point cloud from rgb and depth image 
-    raise NotImplementedError
-    return pcd
+     # Get point cloud from rgb and depth image 
+
+    #get rgb and depth images
+    scale = 1000
+    rgb_image = cv2.imread(rgb)
+    depth_image = cv2.imread(depth,cv2.IMREAD_UNCHANGED).astype(float) / scale
+
+
+    # camera internal parameter
+    # fov = 90 degree and the camera resolution is 512 * 512,depth_scale = 1000
+    height, width = depth_image.shape
+    cx = width/2
+    cy = height/2
+    fy = cy
+    fx = cx
+    
+    # pixels with depth to point cloud
+    for i in range(height):
+        for j in range(width):
+            z = depth_image[i, j]
+            y = (-i+cy) * z / fy
+            x = (-j+cx) * z / fx
+            color = rgb_image[i,j]/255
+            pcd.append([x,y,z])
+            colors.append([color[2],color[1],color[0]])
+    return pcd,colors
 
 
 def preprocess_point_cloud(pcd, voxel_size):

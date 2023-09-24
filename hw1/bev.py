@@ -1,6 +1,4 @@
-from turtle import width
 import cv2
-#from load import transform_depth
 import numpy as np
 import math
 
@@ -131,8 +129,8 @@ if __name__ == "__main__":
 
     pitch_ang = 90
 
-    front_rgb = "bev_data/front1.png"
-    top_rgb = "bev_data/bev1.png"
+    front_rgb = "bev_data/front2.png"
+    top_rgb = "bev_data/bev2.png"
 
     # click the pixels on window
     img = cv2.imread(top_rgb, 1)
