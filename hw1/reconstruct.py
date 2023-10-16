@@ -5,7 +5,9 @@ import glob
 import copy
 from sklearn.neighbors import NearestNeighbors
 import random
+import time
 
+star_time = time.time()
 scale = 1
 trans_list = []
 image_total_number = 0
@@ -52,10 +54,10 @@ def execute_global_registration(source_down, target_down, source_fpfh,
     distance_threshold = voxel_size * 15
     result = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
         source_down, target_down, source_fpfh, target_fpfh, True, distance_threshold,
-        o3d.pipelines.registration.TransformationEstimationPointToPoint(),
+        o3d.pipelines.registration.TransformationEstimationPointToPlane(),
         3, [
             o3d.pipelines.registration.CorrespondenceCheckerBasedOnEdgeLength(
-                0.9),
+                1),
             o3d.pipelines.registration.CorrespondenceCheckerBasedOnDistance(
                 distance_threshold)
         ], o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
@@ -166,27 +168,23 @@ def reconstruct(args):
             transformation_matrix = np.asarray(trans)
         # ----------------------------------------------------------------------
         trans_list.append(transformation_matrix)
-        # transformation_matrix = result_ransac.transformation
-        # if batch_number % 5 == 0:
-        # draw_registration_result(
-        #     source_down, target_down, transformation_matrix)
+        # if batch_number % 20 == 0:
+        #     draw_registration_result(
+        #         source_down, target_down, transformation_matrix)
         batch_pcd = batch_pcd.transform(transformation_matrix)
         batch_pcd += target_down
         source = batch_pcd
         source_down, source_fpfh = preprocess_point_cloud(source, voxel_size)
 # -------------------------------------------------------------------------------
-    #batch_pcd, _ = preprocess_point_cloud(batch_pcd, voxel_size)
+    batch_pcd, _ = preprocess_point_cloud(batch_pcd, voxel_size)
 
     pred_cam_pos = []
-    xyz = np.zeros((1, 3))
+    xyz = np.identity(4, dtype=np.float64)
     for i in range(len(trans_list)-1):
-        pcd = o3d.geometry.PointCloud()
-        pcd.points = o3d.utility.Vector3dVector(xyz)
+        pcd = xyz
         pred_cam_pos.append(pcd)
-        for pcd in pred_cam_pos:
-            pcd = pcd.transform(trans_list[i])
-       
-
+        for j in range(len(pred_cam_pos)-1):
+            pred_cam_pos[j] = np.dot(trans_list[i], pred_cam_pos[j])
     result_pcd = limit_pcd_height(batch_pcd)
 
     return result_pcd, pred_cam_pos
@@ -289,7 +287,7 @@ if __name__ == '__main__':
     result_pcd, pred_cam_pos = reconstruct(args)
 
     radius = 0.05
-    all_points = np.vstack([np.asarray(pcd.points) for pcd in pred_cam_pos])
+    all_points = np.vstack([np.asarray((pcd[0:3, 3])) for pcd in pred_cam_pos])
     lines = []
     for i in range(len(pred_cam_pos) - 1):
         lines.append([i, i + 1])
@@ -313,4 +311,7 @@ if __name__ == '__main__':
     2. Red line: estimated camera pose
     3. Black line: ground truth camera pose
     '''
+    end_time = time.time()
+    execute_time = end_time - star_time
+    print("execute ",execute_time," sec")
     o3d.visualization.draw_geometries([result_pcd, line_pcd])
