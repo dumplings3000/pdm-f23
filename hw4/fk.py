@@ -21,13 +21,6 @@ def cross(a : np.ndarray, b : np.ndarray) -> np.ndarray :
 
 def get_ur5_DH_params():
 
-    # TODO: this is the DH parameters (following classic DH convention) of the robot in this assignment,
-    # It will be a little bit different from the official spec 
-    # You need to use these parameters to compute the forward kinematics and Jacobian matrix
-    # details : 
-    # see "pybullet_robot_envs/envs/ur5_envs/robot_data/ur5/ur5.urdf" in this project folder
-    # official spec : https://www.universal-robots.com/articles/ur/application-installation/dh-parameters-for-calculations-of-kinematics-and-dynamics/
-    
     dh_params = [
         {'a':  0,      'd': 0.0892,  'alpha':  np.pi/2,  },    # joint1
         {'a':  -0.425, 'd': 0,       'alpha':  0         },    # joint2
@@ -40,33 +33,34 @@ def get_ur5_DH_params():
     return dh_params
 
 def your_fk(DH_params : dict, q : list or tuple or np.ndarray, base_pos) -> np.ndarray:
-
+    D = []
+    R = []
     # robot initial position
     base_pose = list(base_pos) + [0, 0, 0]  
-
     assert len(DH_params) == 6 and len(q) == 6, f'Both DH_params and q should contain 6 values,\n' \
                                                 f'but get len(DH_params) = {DH_params}, len(q) = {len(q)}'
 
     A = get_matrix_from_pose(base_pose) # a 4x4 matrix, type should be np.ndarray
     jacobian = np.zeros((6, 6)) # a 6x6 matrix, type should be np.ndarray
-
-    # -------------------------------------------------------------------------------- #
-    # --- TODO: Read the task description                                          --- #
-    # --- Task 1 : Compute Forward-Kinematic and Jacobain of the robot by yourself --- #
-    # ---          Try to implement `your_fk` function without using any pybullet  --- #
-    # ---          API. (20% for accuracy)                                         --- #
-    # -------------------------------------------------------------------------------- #
-    
+    D.append(A[:3, 3])
+    R.append(np.identity(3))
+   
     #### your code ####
-    
+    for i in range(6):
+        a, d, alpha = DH_params[i].values()
+        transform = dh_transform(alpha, a, d, q[i])
+        A = np.dot(A, transform)
+        D.append(A[:3, 3])
+        R.append(A[:3,:3])
+
+    for j in range(6):
+        angular = np.dot(R[j],[0,0,1])
+        jacobian[:3,j] += np.cross(angular,D[6]-D[j])
+        jacobian[3:,j] += angular
 
     # A = ? # may be more than one line
     # jacobian = ? # may be more than one line
 
-    raise NotImplementedError
-    # hint : 
-    # https://automaticaddison.com/the-ultimate-guide-to-jacobian-matrices-for-robotics/
-    
     ###############################################
 
     # adjustment don't touch
@@ -77,6 +71,21 @@ def your_fk(DH_params : dict, q : list or tuple or np.ndarray, base_pos) -> np.n
     pose_7d = np.asarray(get_pose_from_matrix(A,7))
 
     return pose_7d, jacobian
+
+def dh_transform(alpha, a, d, theta):
+    ct = np.cos(theta)
+    st = np.sin(theta)
+    ca = np.cos(alpha)
+    sa = np.sin(alpha)
+
+    transform = np.array([
+        [ct, -st * ca, st * sa, a * ct],
+        [st, ct * ca, -ct * sa, a * st],
+        [0, sa, ca, d],
+        [0, 0, 0, 1]
+    ])
+
+    return transform
 
 # TODO: [for your information]
 # This function is the scoring function, we will use the same code 

@@ -73,18 +73,30 @@ def your_ik(robot_id, new_pose : list or tuple or np.ndarray,
     # -------------------------------------------------------------------------------- #
     
     #### your code ####
+    DH_params = get_ur5_DH_params()
+    target_pose = np.array(new_pose)[:6]
 
-    # TODO: update tmp_q
-    # tmp_q = ? # may be more than one line
+    # Optimization loop
+    for iter in range(max_iters):
+        # Calculate the forward kinematics to get the current end-effector pose
+        current_pose, jacobian = your_fk(DH_params, tmp_q, base_pos)
+        current_pose = pose_7d_to_6d(current_pose)
+        # Compute the error in the pose
+        error = target_pose - current_pose
 
-    # hint : 
-    # 1. You may use `your_fk` function and jacobian matrix to do this
-    # 2. Be careful when computing the delta x
-    # 3. You may use some hyper parameters (i.e., step rate) in optimization loops
+        # Check if the error is below the stop threshold
+        if np.linalg.norm(error) < stop_thresh:
+            break
 
-    ###################
+        # Compute the change in joint angles using the Jacobian
+        delta_q = np.linalg.lstsq(jacobian, error, rcond=None)[0]
+
+        # Update joint angles
+        tmp_q += delta_q
+
+        # Clip joint angles to stay within the limits
+        tmp_q = np.clip(tmp_q, joint_limits[:, 0], joint_limits[:, 1])
     
-    raise NotImplementedError
 
     return list(tmp_q) # 6 DoF
 
